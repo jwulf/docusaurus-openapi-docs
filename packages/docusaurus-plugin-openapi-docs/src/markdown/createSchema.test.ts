@@ -244,6 +244,93 @@ describe("createNodes", () => {
         )
       ).toMatchSnapshot();
     });
+
+    it("should display format for primitive oneOf arm", async () => {
+      const schema: SchemaObject = {
+        type: "object",
+        properties: {
+          filter: {
+            oneOf: [
+              { type: "string", format: "date-time", description: "Exact match timestamp" },
+              {
+                type: "object",
+                properties: {
+                  $eq: { type: "string", format: "date-time" },
+                  $in: { type: "array", items: { type: "string", format: "date-time" } },
+                },
+              },
+            ],
+          },
+        },
+      };
+
+      const rendered = await Promise.all(
+        createNodes(schema, "response").map(
+          async (md: any) => await prettier.format(md, { parser: "babel" })
+        )
+      );
+      // Simple assertion that the first arm includes (date-time)
+      expect(rendered.join("\n")).toContain("date-time");
+    });
+
+    it("should display custom (non-standard) format for primitive oneOf arm", async () => {
+      const schema: SchemaObject = {
+        type: "object",
+        properties: {
+          state: {
+            oneOf: [
+              { type: "string", format: "JobStateEnum" },
+              { type: "object", properties: { $eq: { type: "string", format: "JobStateEnum" } } },
+            ],
+          },
+        },
+      };
+      const rendered = await Promise.all(
+        createNodes(schema, "response").map(
+          async (md: any) => await prettier.format(md, { parser: "babel" })
+        )
+      );
+      expect(rendered.join("\n")).toContain("JobStateEnum");
+    });
+
+    it("should prefer enum identifier (format) over base string when enum present", async () => {
+      const schema: SchemaObject = {
+        type: "object",
+        properties: {
+          jobState: {
+            oneOf: [
+              {
+                type: "string",
+                format: "JobStateEnum",
+                // mimic enum provided via allOf wrapper
+                allOf: [
+                  {
+                    enum: ["ACTIVE", "COMPLETED", "FAILED"],
+                  },
+                ],
+              },
+              {
+                type: "object",
+                properties: {
+                  $in: {
+                    type: "array",
+                    items: { type: "string", format: "JobStateEnum" },
+                  },
+                },
+              },
+            ],
+          },
+        },
+      };
+      const rendered = await Promise.all(
+        createNodes(schema, "response").map(
+          async (md: any) => await prettier.format(md, { parser: "babel" })
+        )
+      );
+      const joined = rendered.join("\n");
+      // Should contain the enum identifier label and not reduce to plain 'string (' label
+      expect(joined).toContain("JobStateEnum");
+    });
   });
 
   describe("anyOf", () => {

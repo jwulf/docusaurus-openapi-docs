@@ -818,13 +818,44 @@ export function createNodes(
         });
       }
     }
+    // Derive an effective format & type. Some specs express primitives via allOf combining
+    // a base type schema with another schema that adds a custom format (e.g. `allOf: [{type: string}, {format: custom-id}]`).
+    // When the root schema itself does not declare `format`, look into its allOf members.
+    let effectiveType = schema.type as string | undefined;
+    let effectiveFormat = schema.format as string | undefined;
+    if (!effectiveFormat && Array.isArray(schema.allOf)) {
+      for (const sub of schema.allOf) {
+        if (typeof sub === "object") {
+          const subSchema = sub as SchemaObject;
+          if (!effectiveType && subSchema.type) {
+            effectiveType = subSchema.type as string;
+          }
+          if (subSchema.format) {
+            effectiveFormat = subSchema.format as string;
+            // We can break after finding first format to keep deterministic output.
+            break;
+          }
+        }
+      }
+    }
+    // Fallback: if type still missing but we have a format, try to infer string (most custom formats decorate strings).
+    if (!effectiveType && effectiveFormat) {
+      effectiveType = "string";
+    }
+    // Construct display label consistent with getSchemaName (type<format>) without mutating original schema unless needed.
+    let primitiveName: string;
+    if (effectiveFormat && effectiveType) {
+      primitiveName = `${effectiveType}<${effectiveFormat}>`;
+    } else {
+      primitiveName = getSchemaName(schema) || effectiveType || "";
+    }
     return create("div", {
       style: {
         marginTop: ".5rem",
         marginBottom: ".5rem",
       },
       children: [
-        createDescription(schema.type),
+        createDescription(primitiveName),
         guard(getQualifierMessage(schema), (message) =>
           create("div", {
             style: {
