@@ -16,13 +16,15 @@ export function mergeCodeSampleLanguage(
   languages: Language[],
   codeSamples: CodeSample[]
 ): Language[] {
-  return languages.map((language) => {
+  const merged = languages.map((language) => {
     const languageCodeSamples = codeSamples.filter(
       ({ lang }) => lang === language.codeSampleLanguage
     );
 
     if (languageCodeSamples.length) {
-      const samples = languageCodeSamples.map(({ lang }) => lang);
+      const samples = languageCodeSamples.map(({ lang }, i) =>
+        languageCodeSamples.length > 1 ? `${lang}__${i}` : lang
+      );
       const samplesLabels = languageCodeSamples.map(
         ({ label, lang }) => label || lang
       );
@@ -39,6 +41,47 @@ export function mergeCodeSampleLanguage(
 
     return language;
   });
+
+  // Append entries for code samples whose lang doesn't match any existing language
+  const matchedLangs = new Set(
+    languages.map((lang) => lang.codeSampleLanguage)
+  );
+  const unmatchedSamples = codeSamples.filter(
+    ({ lang }) => !matchedLangs.has(lang)
+  );
+
+  // Group unmatched samples by lang
+  const unmatchedByLang = new Map<string, CodeSample[]>();
+  for (const sample of unmatchedSamples) {
+    const existing = unmatchedByLang.get(sample.lang) || [];
+    existing.push(sample);
+    unmatchedByLang.set(sample.lang, existing);
+  }
+
+  // Map languages without their own icon to a suitable fallback
+  const logoFallback: Record<string, string> = {
+    typescript: "nodejs",
+  };
+
+  for (const [lang, samples] of unmatchedByLang) {
+    const key = lang.toLowerCase();
+    merged.push({
+      highlight: key,
+      language: key,
+      codeSampleLanguage: lang as any,
+      logoClass: logoFallback[key] ?? key,
+      variant: key,
+      variants: [key],
+      sample: samples.length > 1 ? `${lang}__0` : lang,
+      samples: samples.map((s, i) =>
+        samples.length > 1 ? `${s.lang}__${i}` : s.lang
+      ),
+      samplesSources: samples.map((s) => s.source),
+      samplesLabels: samples.map((s) => s.label || s.lang),
+    });
+  }
+
+  return merged;
 }
 
 export const mergeArraysbyLanguage = (arr1: any, arr2: any) => {
