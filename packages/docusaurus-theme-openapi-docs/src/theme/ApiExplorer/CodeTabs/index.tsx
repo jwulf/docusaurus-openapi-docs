@@ -93,7 +93,19 @@ function TabList({
 
     if (action) {
       let newLanguage: Language;
-      if (currentLanguage && includeVariant) {
+      if (currentLanguage && includeVariant && includeSample) {
+        // Combined mode: samples and variants in one tab group
+        newLanguage = languageSet.filter(
+          (lang: Language) => lang.language === currentLanguage.language
+        )[0];
+        if (newLanguage.samples?.includes(newTabValue)) {
+          newLanguage.sample = newTabValue;
+          action.setSelectedSample(newTabValue);
+        } else {
+          newLanguage.variant = newTabValue;
+          action.setSelectedVariant(newTabValue.toLowerCase());
+        }
+      } else if (currentLanguage && includeVariant) {
         newLanguage = languageSet.filter(
           (lang: Language) => lang.language === currentLanguage.language
         )[0];

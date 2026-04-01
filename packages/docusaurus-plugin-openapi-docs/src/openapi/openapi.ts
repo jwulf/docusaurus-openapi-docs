@@ -19,6 +19,8 @@ import { Collection } from "postman-collection";
 import * as sdk from "postman-collection";
 
 import { sampleRequestFromSchema } from "./createRequestExample";
+import { sampleResponseFromSchema } from "./createResponseExample";
+import { buildCodeSamples } from "./sdkExamples";
 import { OpenApiObject, TagGroupObject, TagObject } from "./types";
 import { isURL } from "../index";
 import {
@@ -30,7 +32,6 @@ import {
   SidebarOptions,
   TagPageMetadata,
 } from "../types";
-import { sampleResponseFromSchema } from "./createResponseExample";
 import { loadAndResolveSpec } from "./utils/loadAndResolveSpec";
 
 /**
@@ -628,14 +629,16 @@ export async function readOpenapiFiles(
 export async function processOpenapiFiles(
   files: OpenApiFiles[],
   options: APIOptions,
-  sidebarOptions: SidebarOptions
+  sidebarOptions: SidebarOptions,
+  siteDir?: string
 ): Promise<[ApiMetadata[], TagObject[][], TagGroupObject[]]> {
   const promises = files.map(async (file) => {
     if (file.data !== undefined) {
       const processedFile = await processOpenapiFile(
         file.data,
         options,
-        sidebarOptions
+        sidebarOptions,
+        siteDir
       );
       const itemsObjectsArray = processedFile[0].map((item) => ({
         ...item,
@@ -691,12 +694,47 @@ export async function processOpenapiFiles(
 export async function processOpenapiFile(
   openapiData: OpenApiObject,
   options: APIOptions,
-  sidebarOptions: SidebarOptions
+  sidebarOptions: SidebarOptions,
+  siteDir?: string
 ): Promise<[ApiMetadata[], TagObject[], TagGroupObject[]]> {
   const postmanCollection = await createPostmanCollection(openapiData);
   const items = createItems(openapiData, options, sidebarOptions);
 
   bindCollectionToApiItems(items, postmanCollection);
+
+  // Inject SDK code samples from operation-map.json files if configured
+  if (options.sdkExamples && options.sdkExamples.length > 0 && siteDir) {
+    const fileCache = new Map<string, string>();
+    const mapCache = new Map<string, Record<string, unknown[]>>();
+    let injectedCount = 0;
+    for (const item of items) {
+      if (item.type !== "api") continue;
+      const apiItem = item as ApiPageMetadata;
+      const operationId = apiItem.api.operationId;
+      if (!operationId) continue;
+
+      const sdkSamples = buildCodeSamples(
+        operationId,
+        options.sdkExamples,
+        siteDir,
+        fileCache,
+        mapCache as any
+      );
+
+      if (sdkSamples.length > 0) {
+        const existing = (apiItem.api as any)["x-codeSamples"] ?? [];
+        (apiItem.api as any)["x-codeSamples"] = [...sdkSamples, ...existing];
+        injectedCount += sdkSamples.length;
+      }
+    }
+    if (injectedCount > 0) {
+      console.log(
+        chalk.green(
+          `SDK examples: injected ${injectedCount} code sample(s)`
+        )
+      );
+    }
+  }
 
   let tags: TagObject[] = [];
   if (openapiData.tags !== undefined) {

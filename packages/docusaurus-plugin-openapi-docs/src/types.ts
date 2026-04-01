@@ -8,6 +8,7 @@
 import type { SidebarItemDoc } from "@docusaurus/plugin-content-docs/lib/sidebars/types";
 import Request from "postman-collection";
 
+import { SdkExampleSource } from "./openapi/sdkExamples";
 import {
   InfoObject,
   OperationObject,
@@ -53,6 +54,7 @@ export interface APIOptions {
   showSchemas?: boolean;
   disableCompression?: boolean;
   maskCredentials?: boolean;
+  sdkExamples?: SdkExampleSource[];
 }
 
 export interface MarkdownGenerator {

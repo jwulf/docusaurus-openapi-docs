@@ -145,7 +145,8 @@ export default function pluginOpenAPIDocs(
       const [loadedApi, tags, tagGroups] = await processOpenapiFiles(
         openapiFiles,
         options,
-        sidebarOptions!
+        sidebarOptions!,
+        siteDir
       );
       if (!fs.existsSync(outputDir)) {
         try {

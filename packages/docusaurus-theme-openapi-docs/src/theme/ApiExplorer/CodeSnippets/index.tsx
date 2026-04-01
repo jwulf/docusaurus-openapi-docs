@@ -264,22 +264,29 @@ function CodeSnippets({
                 className: `openapi-tabs__code-item--${lang.logoClass}`,
               }}
             >
-              {/* Inner x-codeSamples tabs */}
-              {lang.samples && (
+              {/* Combined inner tabs: samples + variants in one row */}
+              {lang.samples ? (
                 <CodeTabs
                   className="openapi-tabs__code-container-inner"
                   action={{
                     setLanguage: setLanguage,
                     setSelectedSample: setSelectedSample,
+                    setSelectedVariant: setSelectedVariant,
                   }}
                   includeSample={true}
+                  includeVariant={
+                    !(
+                      lang.variants.length === 1 &&
+                      lang.variants[0] === lang.language
+                    )
+                  }
                   currentLanguage={lang}
-                  defaultValue={selectedSample}
+                  defaultValue={lang.samples[0]}
                   languageSet={mergedLangs}
                   lazy
                 >
-                  {lang.samples.map((sample, index) => {
-                    return (
+                  {[
+                    ...lang.samples.map((sample, index) => (
                       <CodeTab
                         value={sample}
                         label={
@@ -287,7 +294,7 @@ function CodeSnippets({
                             ? lang.samplesLabels[index]
                             : sample
                         }
-                        key={`${lang.language}-${lang.sample}`}
+                        key={`${lang.language}-sample-${index}`}
                         attributes={{
                           className: `openapi-tabs__code-item--sample`,
                         }}
@@ -301,46 +308,70 @@ function CodeSnippets({
                           {codeSampleCodeText}
                         </ApiCodeBlock>
                       </CodeTab>
+                    )),
+                    ...(!(
+                      lang.variants.length === 1 &&
+                      lang.variants[0] === lang.language
+                    )
+                      ? lang.variants.map((variant, index) => (
+                          <CodeTab
+                            value={variant.toLowerCase()}
+                            label={variant.toUpperCase()}
+                            key={`${lang.language}-variant-${index}`}
+                            attributes={{
+                              className: `openapi-tabs__code-item--variant`,
+                            }}
+                          >
+                            {/* @ts-ignore */}
+                            <ApiCodeBlock
+                              language={lang.highlight}
+                              className="openapi-explorer__code-block"
+                              showLineNumbers={true}
+                            >
+                              {codeText}
+                            </ApiCodeBlock>
+                          </CodeTab>
+                        ))
+                      : []),
+                  ]}
+                </CodeTabs>
+              ) : (
+                /* Variant-only inner tabs */
+                <CodeTabs
+                  className="openapi-tabs__code-container-inner"
+                  action={{
+                    setLanguage: setLanguage,
+                    setSelectedVariant: setSelectedVariant,
+                  }}
+                  includeVariant={true}
+                  currentLanguage={lang}
+                  defaultValue={selectedVariant}
+                  languageSet={mergedLangs}
+                  lazy
+                >
+                  {lang.variants.map((variant, index) => {
+                    return (
+                      <CodeTab
+                        value={variant.toLowerCase()}
+                        label={variant.toUpperCase()}
+                        key={`${lang.language}-${lang.variant}`}
+                        attributes={{
+                          className: `openapi-tabs__code-item--variant`,
+                        }}
+                      >
+                        {/* @ts-ignore */}
+                        <ApiCodeBlock
+                          language={lang.highlight}
+                          className="openapi-explorer__code-block"
+                          showLineNumbers={true}
+                        >
+                          {codeText}
+                        </ApiCodeBlock>
+                      </CodeTab>
                     );
                   })}
                 </CodeTabs>
               )}
-
-              {/* Inner generated code snippets */}
-              <CodeTabs
-                className="openapi-tabs__code-container-inner"
-                action={{
-                  setLanguage: setLanguage,
-                  setSelectedVariant: setSelectedVariant,
-                }}
-                includeVariant={true}
-                currentLanguage={lang}
-                defaultValue={selectedVariant}
-                languageSet={mergedLangs}
-                lazy
-              >
-                {lang.variants.map((variant, index) => {
-                  return (
-                    <CodeTab
-                      value={variant.toLowerCase()}
-                      label={variant.toUpperCase()}
-                      key={`${lang.language}-${lang.variant}`}
-                      attributes={{
-                        className: `openapi-tabs__code-item--variant`,
-                      }}
-                    >
-                      {/* @ts-ignore */}
-                      <ApiCodeBlock
-                        language={lang.highlight}
-                        className="openapi-explorer__code-block"
-                        showLineNumbers={true}
-                      >
-                        {codeText}
-                      </ApiCodeBlock>
-                    </CodeTab>
-                  );
-                })}
-              </CodeTabs>
             </CodeTab>
           );
         })}
